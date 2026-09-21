@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">LNote</string>
+    <string name="calendar_widget_name">LNote Calendar</string>
+    <string name="calendar_widget_description">GitHub-style work activity heat map widget</string>
+    <string name="dashboard_widget_name">LNote Dashboard</string>
+    <string name="dashboard_widget_description">Daily stats counter with interactive IN and OUT buttons</string>
+</resources>
