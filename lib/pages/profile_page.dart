@@ -8,6 +8,7 @@ import '../theme/app_theme.dart';
 import '../models/user_profile.dart';
 import '../services/notification_service.dart';
 import '../widgets/backend_config_sheet.dart';
+import '../widgets/app_lock_modal.dart';
 import 'desktop_widget_view.dart';
 
 class ProfilePage extends StatefulWidget {
@@ -224,19 +225,61 @@ class _ProfilePageState extends State<ProfilePage> {
           _sectionLabel(theme, 'SECURITY & INFO'),
           const SizedBox(height: 8),
 
-          // App lock (stub)
+          // App lock
           _buildTapTile(
             theme,
             icon: Icons.lock_outline_rounded,
             title: 'App Lock',
-            subtitle: 'Coming soon',
-            onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                    content: Text(
-                        'App Lock will be available in a future update')),
-              );
-            },
+            subtitle: widget.storage.isAppLockEnabled
+                ? (widget.storage.isBiometricEnabled
+                    ? 'Protected with PIN & Biometrics'
+                    : 'Protected with 4-digit PIN')
+                : 'Set a 4-digit PIN and biometrics',
+            iconColor: widget.storage.isAppLockEnabled
+                ? AppTheme.successGreen
+                : AppTheme.accentTeal.withAlpha(179),
+            trailing: widget.storage.isAppLockEnabled
+                ? Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppTheme.successGreen.withAlpha(25),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: AppTheme.successGreen.withAlpha(60),
+                        width: 0.5,
+                      ),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.check_circle_rounded,
+                            color: AppTheme.successGreen, size: 12),
+                        SizedBox(width: 4),
+                        Text(
+                          'ON',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            color: AppTheme.successGreen,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.onSurface.withAlpha(20),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      'OFF',
+                      style: theme.textTheme.labelSmall?.copyWith(fontSize: 10),
+                    ),
+                  ),
+            onTap: () => AppLockModal.show(context, widget.storage),
           ),
           // Desktop Widget
           _buildTapTile(

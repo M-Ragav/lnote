@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:crypto/crypto.dart';
 import '../models/user_profile.dart';
 import '../models/attendance_day.dart';
 import '../models/session.dart';
@@ -20,6 +21,9 @@ class StorageService extends ChangeNotifier {
   static const _backendUrlKey = 'backend_url';
   static const _autoSyncKey = 'auto_sync_enabled';
   static const _lastSyncTimeKey = 'last_sync_time';
+  static const _appLockEnabledKey = 'app_lock_enabled';
+  static const _appLockPinHashKey = 'app_lock_pin_hash';
+  static const _appLockBiometricKey = 'app_lock_biometric_enabled';
   static const _attendanceFile = 'attendance_data.json';
   static const _skillsFile = 'skills_data.json';
   static const _widgetChannel = MethodChannel('com.example.lnote/widgets');
@@ -31,6 +35,11 @@ class StorageService extends ChangeNotifier {
   bool _isDarkMode = true;
   double _dailyTargetHours = 8.0;
   bool _notificationsEnabled = true;
+
+  // ─── App Lock & Biometrics ───
+  bool _isAppLockEnabled = false;
+  String? _pinHash;
+  bool _isBiometricEnabled = false;
 
   // ─── Backend & Sync State ───
   String? _backendUrl;
@@ -46,6 +55,9 @@ class StorageService extends ChangeNotifier {
   double get dailyTargetHours => _dailyTargetHours;
   bool get notificationsEnabled => _notificationsEnabled;
   bool get hasProfile => _profile != null;
+
+  bool get isAppLockEnabled => _isAppLockEnabled && _pinHash != null;
+  bool get isBiometricEnabled => _isBiometricEnabled;
 
   String? get backendUrl => _backendUrl;
   bool get autoSyncEnabled => _autoSyncEnabled;
@@ -98,6 +110,9 @@ class StorageService extends ChangeNotifier {
     _isDarkMode = _prefs?.getBool(_darkModeKey) ?? true;
     _dailyTargetHours = _prefs?.getDouble(_dailyTargetKey) ?? 8.0;
     _notificationsEnabled = _prefs?.getBool(_notificationsKey) ?? true;
+    _isAppLockEnabled = _prefs?.getBool(_appLockEnabledKey) ?? false;
+    _pinHash = _prefs?.getString(_appLockPinHashKey);
+    _isBiometricEnabled = _prefs?.getBool(_appLockBiometricKey) ?? false;
   }
 
   Future<void> setDarkMode(bool value) async {
@@ -115,6 +130,60 @@ class StorageService extends ChangeNotifier {
   Future<void> setNotificationsEnabled(bool value) async {
     _notificationsEnabled = value;
     await _prefs?.setBool(_notificationsKey, value);
+    notifyListeners();
+  }
+
+  // ─── App Lock & PIN Methods ────────────────────────────────
+
+  static String _hashPin(String pin) {
+    const salt = 'lnote_secure_salt_2026_';
+    final bytes = utf8.encode('$salt$pin');
+    return sha256.convert(bytes).toString();
+  }
+
+  /// Sets or updates the 4-digit PIN
+  Future<bool> setAppPin(String pin, {bool enableBiometric = false}) async {
+    if (pin.length != 4) return false;
+    _pinHash = _hashPin(pin);
+    _isAppLockEnabled = true;
+    _isBiometricEnabled = enableBiometric;
+    await _prefs?.setString(_appLockPinHashKey, _pinHash!);
+    await _prefs?.setBool(_appLockEnabledKey, true);
+    await _prefs?.setBool(_appLockBiometricKey, enableBiometric);
+    notifyListeners();
+    return true;
+  }
+
+  /// Verifies entered PIN against stored hash
+  bool verifyPin(String pin) {
+    if (_pinHash == null) return false;
+    return _pinHash == _hashPin(pin);
+  }
+
+  /// Change existing PIN
+  Future<bool> changePin({required String currentPin, required String newPin}) async {
+    if (!verifyPin(currentPin)) return false;
+    if (newPin.length != 4) return false;
+    return setAppPin(newPin, enableBiometric: _isBiometricEnabled);
+  }
+
+  /// Disables App Lock after verifying current PIN
+  Future<bool> disableAppLock({required String currentPin}) async {
+    if (!verifyPin(currentPin)) return false;
+    _isAppLockEnabled = false;
+    _pinHash = null;
+    _isBiometricEnabled = false;
+    await _prefs?.remove(_appLockPinHashKey);
+    await _prefs?.setBool(_appLockEnabledKey, false);
+    await _prefs?.setBool(_appLockBiometricKey, false);
+    notifyListeners();
+    return true;
+  }
+
+  /// Toggles biometric unlock
+  Future<void> setBiometricEnabled(bool value) async {
+    _isBiometricEnabled = value;
+    await _prefs?.setBool(_appLockBiometricKey, value);
     notifyListeners();
   }
 

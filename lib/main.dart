@@ -6,6 +6,7 @@ import 'theme/app_theme.dart';
 import 'pages/profile_setup_page.dart';
 import 'pages/main_shell.dart';
 import 'pages/desktop_widget_view.dart';
+import 'pages/lock_screen.dart';
 
 void main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -24,10 +25,13 @@ void main(List<String> args) async {
   for (final arg in args) {
     if (arg == '--widget' || arg == '--widget=all') {
       widgetMode = 'all';
+      break;
     } else if (arg == '--widget=dashboard' || arg == '--widget-dashboard') {
       widgetMode = 'dashboard';
+      break;
     } else if (arg == '--widget=calendar' || arg == '--widget-calendar') {
       widgetMode = 'calendar';
+      break;
     }
   }
 
@@ -53,12 +57,15 @@ class LNoteApp extends StatefulWidget {
 
 class _LNoteAppState extends State<LNoteApp> with WidgetsBindingObserver {
   Timer? _periodicSyncTimer;
+  bool _isUnlocked = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     widget.storage.addListener(_onUpdate);
+
+    _isUnlocked = !widget.storage.isAppLockEnabled;
 
     // Periodic sync every 30 seconds while app is running
     _periodicSyncTimer = Timer.periodic(const Duration(seconds: 30), (_) {
@@ -78,7 +85,11 @@ class _LNoteAppState extends State<LNoteApp> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.hidden) {
+      if (widget.storage.isAppLockEnabled) {
+        setState(() => _isUnlocked = false);
+      }
+    } else if (state == AppLifecycleState.resumed) {
       // Reopened or brought to foreground: immediately sync latest updates
       if (widget.storage.isBackendConfigured && widget.storage.autoSyncEnabled) {
         widget.storage.triggerSync();
@@ -112,9 +123,14 @@ class _LNoteAppState extends State<LNoteApp> with WidgetsBindingObserver {
               storage: widget.storage,
               initialMode: widget.widgetMode!,
             )
-          : (widget.storage.hasProfile
-              ? MainShell(storage: widget.storage)
-              : ProfileSetupPage(storage: widget.storage)),
+          : (!widget.storage.hasProfile
+              ? ProfileSetupPage(storage: widget.storage)
+              : (widget.storage.isAppLockEnabled && !_isUnlocked
+                  ? LockScreen(
+                      storage: widget.storage,
+                      onUnlocked: () => setState(() => _isUnlocked = true),
+                    )
+                  : MainShell(storage: widget.storage))),
     );
   }
 }
