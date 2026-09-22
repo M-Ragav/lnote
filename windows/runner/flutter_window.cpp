@@ -36,10 +36,37 @@ bool FlutterWindow::OnCreate() {
   // window is shown. It is a no-op if the first frame hasn't completed yet.
   flutter_controller_->ForceRedraw();
 
+  // Initialize method channel for native window operations (dragging, closing)
+  window_channel_ = std::make_unique<flutter::MethodChannel<>>(
+      flutter_controller_->engine()->messenger(), "com.example.lnote/window",
+      &flutter::StandardMethodCodec::GetInstance());
+
+  window_channel_->SetMethodCallHandler(
+      [this](const flutter::MethodCall<>& call,
+             std::unique_ptr<flutter::MethodResult<>> result) {
+        if (call.method_name() == "startDragging") {
+          HWND hwnd = GetHandle();
+          if (hwnd) {
+            ReleaseCapture();
+            SendMessage(hwnd, WM_NCLBUTTONDOWN, HTCAPTION, 0);
+          }
+          result->Success();
+        } else if (call.method_name() == "closeWindow") {
+          HWND hwnd = GetHandle();
+          if (hwnd) {
+            PostMessage(hwnd, WM_CLOSE, 0, 0);
+          }
+          result->Success();
+        } else {
+          result->NotImplemented();
+        }
+      });
+
   return true;
 }
 
 void FlutterWindow::OnDestroy() {
+  window_channel_ = nullptr;
   if (flutter_controller_) {
     flutter_controller_ = nullptr;
   }

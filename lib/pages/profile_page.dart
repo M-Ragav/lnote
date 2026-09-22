@@ -6,6 +6,7 @@ import '../services/storage_service.dart';
 import '../services/sync_service.dart';
 import '../theme/app_theme.dart';
 import '../models/user_profile.dart';
+import '../services/notification_service.dart';
 import '../widgets/backend_config_sheet.dart';
 import 'desktop_widget_view.dart';
 
@@ -88,6 +89,41 @@ class _ProfilePageState extends State<ProfilePage> {
             subtitle: 'IN alert + OUT reminder after 50 min',
             value: widget.storage.notificationsEnabled,
             onChanged: (val) => widget.storage.setNotificationsEnabled(val),
+          ),
+          const SizedBox(height: 8),
+
+          // Test Notification Button
+          _buildTapTile(
+            theme,
+            icon: Icons.notification_add_outlined,
+            title: 'Test Notification',
+            subtitle: Platform.isAndroid
+                ? 'Send a test notification to this phone now'
+                : (widget.storage.isBackendConfigured
+                    ? 'Push test alert to your phone via backend'
+                    : 'Configure backend below to push alerts to phone'),
+            iconColor: AppTheme.accentCyan,
+            trailing: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: AppTheme.accentCyan.withAlpha(25),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: AppTheme.accentCyan.withAlpha(60),
+                  width: 0.5,
+                ),
+              ),
+              child: const Text(
+                'TEST',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  color: AppTheme.accentCyan,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ),
+            onTap: () => _handleTestNotification(context),
           ),
           const SizedBox(height: 8),
 
@@ -608,6 +644,82 @@ class _ProfilePageState extends State<ProfilePage> {
         ),
       );
     }
+  }
+
+  Future<void> _handleTestNotification(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final isAndroid = Platform.isAndroid;
+    final isBackendSet = widget.storage.isBackendConfigured;
+
+    if (!isAndroid && !isBackendSet) {
+      messenger.clearSnackBars();
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.info_outline, color: AppTheme.warningAmber, size: 18),
+              SizedBox(width: 10),
+              Expanded(
+                child: Text('Configure backend server link below to push alerts to your mobile.'),
+              ),
+            ],
+          ),
+          duration: Duration(seconds: 3),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    bool sentLocal = false;
+    bool sentBackend = false;
+
+    // If on Android, trigger native system notification directly
+    if (isAndroid) {
+      sentLocal = await NotificationService.showLocalNotification(
+        title: 'LNote Alert • Working Session',
+        message: 'Test notification from LNote! Attendance reminders are active.',
+      );
+    }
+
+    // If backend configured, queue notification on backend so mobile receives it
+    if (isBackendSet) {
+      sentBackend = await NotificationService.sendBackendNotification(
+        backendUrl: widget.storage.backendUrl!,
+        title: 'LNote Alert from ${Platform.isWindows ? "Laptop" : "Device"}',
+        message: 'Your attendance reminder test notification arrived successfully!',
+      );
+    }
+
+    if (!mounted) return;
+
+    messenger.clearSnackBars();
+    final String msg;
+    if (isAndroid) {
+      msg = '✓ Test notification sent to this device! Check your notification tray.';
+    } else if (sentBackend) {
+      msg = '✓ Test notification queued on backend! Your mobile phone will receive it on sync.';
+    } else {
+      msg = 'Failed to connect to backend server. Check connection.';
+    }
+
+    messenger.showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(
+              (sentLocal || sentBackend) ? Icons.check_circle_outline : Icons.error_outline,
+              color: (sentLocal || sentBackend) ? AppTheme.successGreen : AppTheme.errorRed,
+              size: 18,
+            ),
+            const SizedBox(width: 10),
+            Expanded(child: Text(msg)),
+          ],
+        ),
+        duration: const Duration(seconds: 4),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   String _formatTimeAgo(DateTime dt) {

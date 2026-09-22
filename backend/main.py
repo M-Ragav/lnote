@@ -61,6 +61,16 @@ def get_sync_state():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Fetch error: {str(e)}")
 
+from pydantic import BaseModel
+from typing import List
+
+class NotificationRequest(BaseModel):
+    title: str = "LNote Alert"
+    message: str = "This is a test notification."
+
+class NotificationAckRequest(BaseModel):
+    ids: List[int]
+
 @app.post("/api/reset")
 def reset_database():
     try:
@@ -68,3 +78,27 @@ def reset_database():
         return {"status": "success", "message": "Database reset successfully"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Reset error: {str(e)}")
+
+@app.post("/api/notify")
+def send_notification(req: NotificationRequest):
+    try:
+        notif_id = database.add_notification(req.title, req.message)
+        return {"status": "success", "id": notif_id, "message": "Notification queued"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Notification error: {str(e)}")
+
+@app.get("/api/notifications")
+def get_notifications():
+    try:
+        items = database.get_pending_notifications()
+        return {"notifications": items}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Fetch notifications error: {str(e)}")
+
+@app.post("/api/notifications/ack")
+def ack_notifications(req: NotificationAckRequest):
+    try:
+        database.mark_notifications_delivered(req.ids)
+        return {"status": "success", "acknowledged": len(req.ids)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Ack notifications error: {str(e)}")

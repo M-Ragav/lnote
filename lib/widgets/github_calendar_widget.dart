@@ -1,19 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../services/storage_service.dart';
-import '../theme/app_theme.dart';
 import '../models/attendance_day.dart';
 
 class GitHubCalendarWidget extends StatelessWidget {
   final StorageService storage;
   final int weeksToShow;
   final bool compact;
+  final bool isGlass;
+  final bool showDayNumbers;
 
   const GitHubCalendarWidget({
     super.key,
     required this.storage,
-    this.weeksToShow = 16,
+    this.weeksToShow = 15,
     this.compact = false,
+    this.isGlass = false,
+    this.showDayNumbers = true,
   });
 
   @override
@@ -24,7 +27,6 @@ class GitHubCalendarWidget extends StatelessWidget {
     // Calculate start date: (weeksToShow) weeks ago, aligned to Monday
     final now = DateTime.now();
     final today = DateUtils.dateOnly(now);
-    // Find current week's Monday (1 = Mon, 7 = Sun)
     final currentWeekMonday = today.subtract(Duration(days: today.weekday - 1));
     final startDate = currentWeekMonday.subtract(Duration(days: (weeksToShow - 1) * 7));
 
@@ -60,15 +62,30 @@ class GitHubCalendarWidget extends StatelessWidget {
     final totalHours = totalLoggedMinutes ~/ 60;
     final totalMins = totalLoggedMinutes % 60;
 
+    final cellWidth = compact ? 20.0 : 28.0;
+    final cellHeight = compact ? 19.0 : 26.0;
+    final cellSpacing = compact ? 3.0 : 4.5;
+
     return Container(
-      padding: EdgeInsets.all(compact ? 12 : 16),
+      padding: EdgeInsets.all(compact ? 12 : 18),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(16),
+        color: isGlass
+            ? (isDark ? const Color(0x22FFFFFF) : const Color(0xCCFFFFFF))
+            : theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: theme.colorScheme.outline.withAlpha(77),
-          width: 0.5,
+          color: isGlass
+              ? (isDark ? Colors.white.withAlpha(45) : Colors.white.withAlpha(200))
+              : theme.colorScheme.outline.withAlpha(77),
+          width: isGlass ? 1.0 : 0.5,
         ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withAlpha(isGlass ? (isDark ? 40 : 15) : 15),
+            blurRadius: isGlass ? 24 : 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -80,62 +97,64 @@ class GitHubCalendarWidget extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  const Icon(
-                    Icons.calendar_month_rounded,
-                    size: 16,
-                    color: AppTheme.accentTeal,
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFF5722).withAlpha(25),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(
+                      Icons.calendar_month_rounded,
+                      size: 16,
+                      color: Color(0xFFFF5722),
+                    ),
                   ),
                   const SizedBox(width: 8),
                   Text(
                     'Work Activity',
                     style: theme.textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 0.3,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.2,
                     ),
                   ),
                 ],
               ),
-              Text(
-                '${totalHours}h ${totalMins}m logged',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: AppTheme.accentTeal,
-                  fontWeight: FontWeight.w600,
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFF5722).withAlpha(20),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: const Color(0xFFFF5722).withAlpha(50),
+                    width: 0.5,
+                  ),
+                ),
+                child: Text(
+                  '${totalHours}h ${totalMins}m logged',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: const Color(0xFFFF5722),
+                    fontWeight: FontWeight.w700,
+                    fontSize: 11,
+                  ),
                 ),
               ),
             ],
           ),
-          SizedBox(height: compact ? 8 : 12),
+          SizedBox(height: compact ? 10 : 14),
 
-          // Calendar Grid
+          // Calendar Grid with Month Headers and Right-aligned Day Labels (Image 1 Style)
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Day of week labels (M, W, F)
-                if (!compact) ...[
-                  Padding(
-                    padding: const EdgeInsets.only(right: 6, top: 16),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        _dayLabel(theme, 'M'),
-                        const SizedBox(height: 12),
-                        _dayLabel(theme, 'W'),
-                        const SizedBox(height: 12),
-                        _dayLabel(theme, 'F'),
-                      ],
-                    ),
-                  ),
-                ],
-
                 // Grid columns (weeks)
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Month labels
-                    _buildMonthHeaders(theme, weeks),
-                    const SizedBox(height: 4),
+                    // Month labels (e.g. Jun 2026, Jul, Aug, Sept)
+                    _buildMonthHeaders(theme, weeks, cellWidth + cellSpacing),
+                    const SizedBox(height: 6),
 
                     // Days grid
                     Row(
@@ -151,8 +170,10 @@ class GitHubCalendarWidget extends StatelessWidget {
                               attendance: attendance,
                               isFuture: isFuture,
                               isDark: isDark,
-                              cellSize: compact ? 10.0 : 13.0,
-                              spacing: compact ? 2.0 : 3.0,
+                              cellWidth: cellWidth,
+                              cellHeight: cellHeight,
+                              spacing: cellSpacing,
+                              showNumber: showDayNumbers,
                             );
                           }).toList(),
                         );
@@ -160,10 +181,39 @@ class GitHubCalendarWidget extends StatelessWidget {
                     ),
                   ],
                 ),
+
+                // Day of week labels on the RIGHT (Mon, Tue, Wed, Thu, Fri, Sat, Sun) as in Image 1
+                Padding(
+                  padding: const EdgeInsets.only(left: 8, top: 22),
+                  child: Column(
+                    children: const [
+                      'Mon',
+                      'Tue',
+                      'Wed',
+                      'Thu',
+                      'Fri',
+                      'Sat',
+                      'Sun',
+                    ].map((label) {
+                      return Container(
+                        height: cellHeight + cellSpacing,
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          label,
+                          style: TextStyle(
+                            fontSize: compact ? 9.5 : 11,
+                            color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
               ],
             ),
           ),
-          SizedBox(height: compact ? 8 : 12),
+          SizedBox(height: compact ? 10 : 14),
 
           // Legend Row
           Row(
@@ -172,37 +222,44 @@ class GitHubCalendarWidget extends StatelessWidget {
               Text(
                 '$activeDaysCount active days',
                 style: theme.textTheme.bodySmall?.copyWith(
-                  fontSize: 10,
-                  color: theme.colorScheme.onSurface.withAlpha(128),
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w500,
+                  color: theme.colorScheme.onSurface.withAlpha(140),
                 ),
               ),
               Row(
                 children: [
-                  Text(
-                    'Less',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      fontSize: 10,
-                      color: theme.colorScheme.onSurface.withAlpha(128),
+                  Container(
+                    width: 10,
+                    height: 10,
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF2B2D33) : const Color(0xFFE2E4E9),
+                      borderRadius: BorderRadius.circular(2),
                     ),
                   ),
                   const SizedBox(width: 4),
-                  ...List.generate(5, (level) {
-                    return Container(
-                      width: compact ? 8 : 10,
-                      height: compact ? 8 : 10,
-                      margin: const EdgeInsets.symmetric(horizontal: 1.5),
-                      decoration: BoxDecoration(
-                        color: _getColorForLevel(level, isDark),
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    );
-                  }),
+                  Text(
+                    'Inactive',
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: theme.colorScheme.onSurface.withAlpha(120),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Container(
+                    width: 10,
+                    height: 10,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFF5722),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
                   const SizedBox(width: 4),
                   Text(
-                    'More',
-                    style: theme.textTheme.bodySmall?.copyWith(
+                    'Active',
+                    style: TextStyle(
                       fontSize: 10,
-                      color: theme.colorScheme.onSurface.withAlpha(128),
+                      color: theme.colorScheme.onSurface.withAlpha(120),
                     ),
                   ),
                 ],
@@ -214,56 +271,29 @@ class GitHubCalendarWidget extends StatelessWidget {
     );
   }
 
-  Widget _dayLabel(ThemeData theme, String text) {
-    return SizedBox(
-      height: 12,
-      child: Text(
-        text,
-        style: theme.textTheme.bodySmall?.copyWith(
-          fontSize: 9,
-          color: theme.colorScheme.onSurface.withAlpha(100),
-          fontWeight: FontWeight.w500,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMonthHeaders(ThemeData theme, List<List<DateTime>> weeks) {
+  Widget _buildMonthHeaders(ThemeData theme, List<List<DateTime>> weeks, double colWidth) {
     final List<Widget> headers = [];
-    String? lastMonth;
-
-    final cellTotalWidth = compact ? 12.0 : 16.0;
+    int lastMonth = -1;
 
     for (int i = 0; i < weeks.length; i++) {
       final firstDayOfWeek = weeks[i][0];
-      final monthName = DateFormat('MMM').format(firstDayOfWeek);
+      final currentMonth = firstDayOfWeek.month;
 
-      if (monthName != lastMonth && firstDayOfWeek.day <= 7) {
-        lastMonth = monthName;
+      if (currentMonth != lastMonth) {
+        lastMonth = currentMonth;
+        final label = i == 0
+            ? DateFormat('MMM yyyy').format(firstDayOfWeek)
+            : DateFormat('MMM').format(firstDayOfWeek);
+
         headers.add(
           SizedBox(
-            width: cellTotalWidth * 3,
+            width: colWidth * 2.8,
             child: Text(
-              monthName,
+              label,
               style: theme.textTheme.bodySmall?.copyWith(
-                fontSize: 9,
-                fontWeight: FontWeight.w600,
-                color: theme.colorScheme.onSurface.withAlpha(140),
-              ),
-            ),
-          ),
-        );
-      } else if (lastMonth == null) {
-        lastMonth = monthName;
-        headers.add(
-          SizedBox(
-            width: cellTotalWidth * 2,
-            child: Text(
-              monthName,
-              style: theme.textTheme.bodySmall?.copyWith(
-                fontSize: 9,
-                fontWeight: FontWeight.w600,
-                color: theme.colorScheme.onSurface.withAlpha(140),
+                fontSize: compact ? 10 : 11.5,
+                fontWeight: FontWeight.w700,
+                color: theme.colorScheme.onSurface.withAlpha(170),
               ),
             ),
           ),
@@ -280,78 +310,68 @@ class GitHubCalendarWidget extends StatelessWidget {
     required AttendanceDay? attendance,
     required bool isFuture,
     required bool isDark,
-    required double cellSize,
+    required double cellWidth,
+    required double cellHeight,
     required double spacing,
+    required bool showNumber,
   }) {
     final minutes = attendance?.totalDuration.inMinutes ?? 0;
-    final level = _getLevel(minutes, isFuture);
-    final color = _getColorForLevel(level, isDark);
+    final isActive = minutes > 0;
+
+    // Reference styling from Image 1:
+    // Active: Vibrant Coral-Orange (#FF5722) with white text
+    // Inactive past: Dark slate (#2B2D33) with clear light-grey text (#C2C5D0)
+    // Future: Faint transparent dark (#1C1E23)
+    final Color bgColor = isFuture
+        ? (isDark ? const Color(0xFF1B1C21) : const Color(0xFFF3F4F6))
+        : isActive
+            ? const Color(0xFFFF5722)
+            : (isDark ? const Color(0xFF2C2E34) : const Color(0xFFE2E4E9));
+
+    final Color textColor = isFuture
+        ? (isDark ? const Color(0xFF454853) : const Color(0xFF9CA3AF))
+        : isActive
+            ? Colors.white
+            : (isDark ? const Color(0xFFC4C8D4) : const Color(0xFF374151));
 
     final dateFormatted = DateFormat('EEE, MMM d').format(date);
     final tooltipText = isFuture
         ? '$dateFormatted (Upcoming)'
-        : minutes > 0
+        : isActive
             ? '$dateFormatted: ${attendance!.formattedTotalDuration} (${attendance.sessions.length} sessions)'
             : '$dateFormatted: No work recorded';
 
     return Tooltip(
       message: tooltipText,
-      waitDuration: const Duration(milliseconds: 200),
+      waitDuration: const Duration(milliseconds: 150),
       child: Container(
-        width: cellSize,
-        height: cellSize,
+        width: cellWidth,
+        height: cellHeight,
         margin: EdgeInsets.all(spacing / 2),
         decoration: BoxDecoration(
-          color: color,
-          borderRadius: BorderRadius.circular(2.5),
+          color: bgColor,
+          borderRadius: BorderRadius.circular(4),
           border: Border.all(
-            color: isFuture
-                ? Colors.transparent
-                : level == 0
-                    ? (isDark ? Colors.white.withAlpha(10) : Colors.black.withAlpha(10))
-                    : AppTheme.accentTeal.withAlpha(60),
+            color: isActive
+                ? const Color(0xFFFF6E40)
+                : (isDark ? Colors.white.withAlpha(8) : Colors.black.withAlpha(8)),
             width: 0.5,
           ),
         ),
+        alignment: Alignment.center,
+        child: showNumber
+            ? Text(
+                date.day.toString(),
+                style: TextStyle(
+                  color: textColor,
+                  fontSize: compact ? 9.5 : 11,
+                  fontWeight: isActive ? FontWeight.w800 : FontWeight.w600,
+                  height: 1.0,
+                ),
+              )
+            : null,
       ),
     );
-  }
-
-  int _getLevel(int minutes, bool isFuture) {
-    if (isFuture) return -1;
-    if (minutes == 0) return 0;
-    if (minutes < 120) return 1; // < 2 hours
-    if (minutes < 240) return 2; // 2 - 4 hours
-    if (minutes < 420) return 3; // 4 - 7 hours
-    return 4; // 7+ hours
-  }
-
-  Color _getColorForLevel(int level, bool isDark) {
-    if (level == -1) {
-      // Future day
-      return isDark ? const Color(0xFF141418) : const Color(0xFFF3F4F6);
-    }
-    switch (level) {
-      case 0:
-        // Grey
-        return isDark ? const Color(0xFF222228) : const Color(0xFFE5E7EB);
-      case 1:
-        // Light teal tint
-        return isDark
-            ? AppTheme.accentTeal.withAlpha(70)
-            : const Color(0xFF86EFAC);
-      case 2:
-        return isDark
-            ? AppTheme.accentTeal.withAlpha(130)
-            : const Color(0xFF4ADE80);
-      case 3:
-        return isDark
-            ? AppTheme.accentTeal.withAlpha(190)
-            : const Color(0xFF22C55E);
-      case 4:
-      default:
-        return AppTheme.accentTeal;
-    }
   }
 
   String _dateStr(DateTime dt) {

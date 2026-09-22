@@ -23,9 +23,19 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
       GetCommandLineArguments();
 
   bool is_widget_mode = false;
+  std::string widget_type = "all";
   for (const auto& arg : command_line_arguments) {
-    if (arg == "--widget") {
+    if (arg == "--widget" || arg == "--widget=all") {
       is_widget_mode = true;
+      widget_type = "all";
+      break;
+    } else if (arg == "--widget=dashboard" || arg == "--widget-dashboard") {
+      is_widget_mode = true;
+      widget_type = "dashboard";
+      break;
+    } else if (arg == "--widget=calendar" || arg == "--widget-calendar") {
+      is_widget_mode = true;
+      widget_type = "calendar";
       break;
     }
   }
@@ -34,9 +44,23 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
 
   FlutterWindow window(project);
   Win32Window::Point origin(10, 10);
-  Win32Window::Size size = is_widget_mode ? Win32Window::Size(440, 480) : Win32Window::Size(1280, 720);
-  const wchar_t* title = is_widget_mode ? L"LNote Widget" : L"lnote";
-  if (!window.Create(title, origin, size)) {
+  Win32Window::Size size = Win32Window::Size(1280, 720);
+  const wchar_t* title = L"lnote";
+
+  if (is_widget_mode) {
+    if (widget_type == "dashboard") {
+      size = Win32Window::Size(440, 260);
+      title = L"LNote Dashboard Widget";
+    } else if (widget_type == "calendar") {
+      size = Win32Window::Size(640, 340);
+      title = L"LNote Calendar Widget";
+    } else {
+      size = Win32Window::Size(460, 580);
+      title = L"LNote Widget";
+    }
+  }
+
+  if (!window.Create(title, origin, size, is_widget_mode)) {
     return EXIT_FAILURE;
   }
   window.SetQuitOnClose(true);

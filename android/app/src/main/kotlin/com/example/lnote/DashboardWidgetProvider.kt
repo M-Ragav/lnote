@@ -45,9 +45,17 @@ class DashboardWidgetProvider : AppWidgetProvider() {
         fun updateAll(context: Context) {
             val appWidgetManager = AppWidgetManager.getInstance(context)
             val ids = appWidgetManager.getAppWidgetIds(ComponentName(context, DashboardWidgetProvider::class.java))
+            if (ids.isEmpty()) return
+
             for (id in ids) {
                 updateWidget(context, appWidgetManager, id)
             }
+
+            val updateIntent = Intent(AppWidgetManager.ACTION_APPWIDGET_UPDATE).apply {
+                component = ComponentName(context, DashboardWidgetProvider::class.java)
+                putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, ids)
+            }
+            context.sendBroadcast(updateIntent)
         }
 
         private fun updateWidget(context: Context, appWidgetManager: AppWidgetManager, appWidgetId: Int) {
@@ -76,7 +84,9 @@ class DashboardWidgetProvider : AppWidgetProvider() {
             }
 
             // Click to open main app
-            val appIntent = Intent(context, MainActivity::class.java)
+            val appIntent = Intent(context, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            }
             val appPendingIntent = PendingIntent.getActivity(
                 context, 0, appIntent,
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
@@ -107,12 +117,18 @@ class DashboardWidgetProvider : AppWidgetProvider() {
         }
 
         private fun getAttendanceFile(context: Context): File {
-            var file = File(context.filesDir, "attendance_data.json")
-            if (!file.exists()) {
-                val subFile = File(context.filesDir, "app_flutter/attendance_data.json")
-                if (subFile.exists()) return subFile
+            val candidates = listOf(
+                File(context.filesDir.parentFile, "app_flutter/attendance_data.json"),
+                File(context.filesDir, "attendance_data.json"),
+                File(context.filesDir, "app_flutter/attendance_data.json")
+            )
+            for (file in candidates) {
+                if (file.exists() && file.length() > 0) return file
             }
-            return file
+            // Ensure parent directory exists for primary location
+            val primary = candidates[0]
+            primary.parentFile?.mkdirs()
+            return primary
         }
 
         private fun loadTodayStats(context: Context): Quad<Int, Int, Boolean, Int> {
@@ -125,7 +141,7 @@ class DashboardWidgetProvider : AppWidgetProvider() {
                 val file = getAttendanceFile(context)
                 val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
 
-                if (file.exists()) {
+                if (file.exists() && file.length() > 0) {
                     val jsonArray = JSONArray(file.readText())
                     totalDays = jsonArray.length()
                     val isoFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US)

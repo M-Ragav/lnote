@@ -66,6 +66,17 @@ def init_db():
                 summary TEXT
             )
         """)
+
+        # Pending device notifications
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS notifications (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                title TEXT NOT NULL,
+                message TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                delivered INTEGER DEFAULT 0
+            )
+        """)
         conn.commit()
 
 def now_iso() -> str:
@@ -202,4 +213,49 @@ def reset_db():
         cursor.execute("DELETE FROM skills")
         cursor.execute("DELETE FROM user_profile")
         cursor.execute("DELETE FROM sync_logs")
+        cursor.execute("DELETE FROM notifications")
         conn.commit()
+
+def add_notification(title: str, message: str) -> int:
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT INTO notifications (title, message, created_at, delivered)
+            VALUES (?, ?, ?, 0)
+        """, (title, message, now_iso()))
+        conn.commit()
+        return cursor.lastrowid
+
+def get_pending_notifications() -> List[Dict[str, Any]]:
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT id, title, message, created_at
+            FROM notifications
+            WHERE delivered = 0
+            ORDER BY id ASC
+        """)
+        rows = cursor.fetchall()
+        return [
+            {
+                "id": row["id"],
+                "title": row["title"],
+                "message": row["message"],
+                "created_at": row["created_at"],
+            }
+            for row in rows
+        ]
+
+def mark_notifications_delivered(ids: List[int]):
+    if not ids:
+        return
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        placeholders = ",".join("?" for _ in ids)
+        cursor.execute(f"""
+            UPDATE notifications
+            SET delivered = 1
+            WHERE id IN ({placeholders})
+        """, ids)
+        conn.commit()
+

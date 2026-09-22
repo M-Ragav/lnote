@@ -20,20 +20,31 @@ void main(List<String> args) async {
   final storage = StorageService();
   await storage.init();
 
+  String? widgetMode;
+  for (final arg in args) {
+    if (arg == '--widget' || arg == '--widget=all') {
+      widgetMode = 'all';
+    } else if (arg == '--widget=dashboard' || arg == '--widget-dashboard') {
+      widgetMode = 'dashboard';
+    } else if (arg == '--widget=calendar' || arg == '--widget-calendar') {
+      widgetMode = 'calendar';
+    }
+  }
+
   runApp(LNoteApp(
     storage: storage,
-    isWidgetMode: args.contains('--widget'),
+    widgetMode: widgetMode,
   ));
 }
 
 class LNoteApp extends StatefulWidget {
   final StorageService storage;
-  final bool isWidgetMode;
+  final String? widgetMode;
 
   const LNoteApp({
     super.key,
     required this.storage,
-    this.isWidgetMode = false,
+    this.widgetMode,
   });
 
   @override
@@ -81,14 +92,26 @@ class _LNoteAppState extends State<LNoteApp> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
+    final isWidget = widget.widgetMode != null;
+    final widgetTitle = widget.widgetMode == 'dashboard'
+        ? 'LNote Dashboard Widget'
+        : (widget.widgetMode == 'calendar'
+            ? 'LNote Calendar Widget'
+            : 'LNote Widget');
+
     return MaterialApp(
-      title: widget.isWidgetMode ? 'LNote Widget' : 'LNote',
+      title: isWidget ? widgetTitle : 'LNote',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme(),
       darkTheme: AppTheme.darkTheme(),
-      themeMode: widget.storage.isDarkMode ? ThemeMode.dark : ThemeMode.light,
-      home: widget.isWidgetMode
-          ? DesktopWidgetView(storage: widget.storage)
+      themeMode: isWidget
+          ? ThemeMode.light
+          : (widget.storage.isDarkMode ? ThemeMode.dark : ThemeMode.light),
+      home: isWidget
+          ? DesktopWidgetView(
+              storage: widget.storage,
+              initialMode: widget.widgetMode!,
+            )
           : (widget.storage.hasProfile
               ? MainShell(storage: widget.storage)
               : ProfileSetupPage(storage: widget.storage)),

@@ -9,6 +9,7 @@ import '../models/attendance_day.dart';
 import '../models/session.dart';
 import '../models/skill.dart';
 import 'sync_service.dart';
+import 'notification_service.dart';
 
 class StorageService extends ChangeNotifier {
   static const _nameKey = 'user_name';
@@ -419,6 +420,11 @@ class StorageService extends ChangeNotifier {
         await _prefs?.setString(_lastSyncTimeKey, _lastSyncTime!.toIso8601String());
         _syncStatus = SyncStatus.success;
         _lastSyncError = null;
+
+        if (Platform.isAndroid && _backendUrl != null) {
+          await NotificationService.checkAndDeliverBackendNotifications(_backendUrl!);
+        }
+
         notifyListeners();
         return true;
       } else {

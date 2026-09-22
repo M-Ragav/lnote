@@ -6,11 +6,13 @@ import '../theme/app_theme.dart';
 class DashboardCardWidget extends StatefulWidget {
   final StorageService storage;
   final bool compact;
+  final bool isGlass;
 
   const DashboardCardWidget({
     super.key,
     required this.storage,
     this.compact = false,
+    this.isGlass = false,
   });
 
   @override
@@ -112,17 +114,25 @@ class _DashboardCardWidgetState extends State<DashboardCardWidget> {
     return Container(
       padding: EdgeInsets.all(widget.compact ? 14 : 18),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(18),
+        color: widget.isGlass
+            ? (theme.brightness == Brightness.dark
+                ? const Color(0x22FFFFFF)
+                : const Color(0xCCFFFFFF))
+            : theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: theme.colorScheme.outline.withAlpha(77),
-          width: 0.5,
+          color: widget.isGlass
+              ? (theme.brightness == Brightness.dark
+                  ? Colors.white.withAlpha(45)
+                  : Colors.white.withAlpha(200))
+              : theme.colorScheme.outline.withAlpha(77),
+          width: widget.isGlass ? 1.0 : 0.5,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withAlpha(15),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
+            color: Colors.black.withAlpha(widget.isGlass ? (theme.brightness == Brightness.dark ? 40 : 15) : 15),
+            blurRadius: widget.isGlass ? 24 : 16,
+            offset: const Offset(0, 6),
           ),
         ],
       ),
