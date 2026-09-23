@@ -3,19 +3,19 @@ import '../services/storage_service.dart';
 import '../services/window_service.dart';
 import '../widgets/desktop/acrylic_surface.dart';
 import '../widgets/desktop/widget_header.dart';
-import '../widgets/desktop/windows_segmented_control.dart';
 import '../widgets/desktop/desktop_dashboard_card.dart';
 import '../widgets/desktop/windows_calendar_card.dart';
+import '../widgets/desktop/empty_glassy_card.dart';
 
-/// Windows 11 Light Acrylic Desktop Widget View
+/// Windows 11 Translucent Glass Desktop Widget View (400x200 px)
 class DesktopWidgetView extends StatefulWidget {
   final StorageService storage;
-  final String initialMode; // 'all', 'dashboard', 'calendar'
+  final String initialMode; // 'dashboard', 'calendar', or 'empty'
 
   const DesktopWidgetView({
     super.key,
     required this.storage,
-    this.initialMode = 'all',
+    this.initialMode = 'dashboard',
   });
 
   @override
@@ -62,7 +62,29 @@ class _DesktopWidgetViewState extends State<DesktopWidgetView> {
 
   @override
   Widget build(BuildContext context) {
-    final showSegmentSwitcher = widget.initialMode == 'all';
+    final String title;
+    if (_mode == 'calendar') {
+      title = 'LNote • Calendar';
+    } else if (_mode == 'empty' || _mode == 'glassy') {
+      title = 'LNote • Glass';
+    } else {
+      title = 'LNote • Dashboard';
+    }
+
+    Widget content;
+    if (_mode == 'calendar') {
+      content = WindowsCalendarCard(
+        storage: widget.storage,
+        compact: true,
+      );
+    } else if (_mode == 'empty' || _mode == 'glassy') {
+      content = const EmptyGlassyCard();
+    } else {
+      content = DesktopDashboardCard(
+        storage: widget.storage,
+        compact: true,
+      );
+    }
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -71,73 +93,23 @@ class _DesktopWidgetViewState extends State<DesktopWidgetView> {
           children: [
             // Minimal Windows 11 Draggable Header
             WidgetHeader(
-              title: _getHeaderTitle(),
+              title: title,
               onSync: _handleSync,
               onRefresh: _handleRefresh,
               onClose: () => WindowService.closeWindow(),
               isSyncing: _isSyncing,
             ),
 
-            // Segmented Control (shown in 'all' multi-mode view)
-            if (showSegmentSwitcher) ...[
-              Padding(
-                padding: const EdgeInsets.fromLTRB(14, 0, 14, 8),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    WindowsSegmentedControl(
-                      selected: _mode,
-                      onChanged: (newMode) => setState(() => _mode = newMode),
-                      items: const [
-                        WindowsSegmentItem(value: 'all', label: 'All'),
-                        WindowsSegmentItem(value: 'dashboard', label: 'Dashboard'),
-                        WindowsSegmentItem(value: 'calendar', label: 'Calendar'),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ],
-
-            // Content Area
+            // Content Area - expands to fill the 400x200 card
             Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(14, 2, 14, 14),
-                physics: const BouncingScrollPhysics(),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    if (_mode == 'all' || _mode == 'dashboard') ...[
-                      DesktopDashboardCard(
-                        storage: widget.storage,
-                        compact: _mode == 'all',
-                      ),
-                    ],
-                    if (_mode == 'all') const SizedBox(height: 10),
-                    if (_mode == 'all' || _mode == 'calendar') ...[
-                      WindowsCalendarCard(
-                        storage: widget.storage,
-                        compact: _mode == 'all',
-                      ),
-                    ],
-                  ],
-                ),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(14, 2, 14, 10),
+                child: content,
               ),
             ),
           ],
         ),
       ),
     );
-  }
-
-  String _getHeaderTitle() {
-    switch (_mode) {
-      case 'dashboard':
-        return 'LNote • Dashboard';
-      case 'calendar':
-        return 'LNote • Calendar';
-      default:
-        return 'LNote';
-    }
   }
 }

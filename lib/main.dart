@@ -23,10 +23,10 @@ void main(List<String> args) async {
 
   String? widgetMode;
   for (final arg in args) {
-    if (arg == '--widget' || arg == '--widget=all') {
-      widgetMode = 'all';
+    if (arg == '--widget=empty' || arg == '--widget=glassy' || arg == '--widget-empty') {
+      widgetMode = 'empty';
       break;
-    } else if (arg == '--widget=dashboard' || arg == '--widget-dashboard') {
+    } else if (arg == '--widget=dashboard' || arg == '--widget-dashboard' || arg == '--widget' || arg == '--widget=all') {
       widgetMode = 'dashboard';
       break;
     } else if (arg == '--widget=calendar' || arg == '--widget-calendar') {
@@ -104,11 +104,9 @@ class _LNoteAppState extends State<LNoteApp> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     final isWidget = widget.widgetMode != null;
-    final widgetTitle = widget.widgetMode == 'dashboard'
-        ? 'LNote Dashboard Widget'
-        : (widget.widgetMode == 'calendar'
-            ? 'LNote Calendar Widget'
-            : 'LNote Widget');
+    final widgetTitle = widget.widgetMode == 'calendar'
+        ? 'LNote Calendar Widget'
+        : 'LNote Dashboard Widget';
 
     return MaterialApp(
       title: isWidget ? widgetTitle : 'LNote',

@@ -98,6 +98,8 @@ class Win32Window {
 
   // window handle for hosted content.
   HWND child_content_ = nullptr;
+
+  bool is_frameless_ = false;
 };
 
 #endif  // RUNNER_WIN32_WINDOW_H_

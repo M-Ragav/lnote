@@ -2,6 +2,7 @@
 
 #include <dwmapi.h>
 #include <flutter_windows.h>
+#include <shobjidl.h>
 
 #include "resource.h"
 
@@ -14,6 +15,13 @@ namespace {
 /// See: https://docs.microsoft.com/windows/win32/api/dwmapi/ne-dwmapi-dwmwindowattribute
 #ifndef DWMWA_USE_IMMERSIVE_DARK_MODE
 #define DWMWA_USE_IMMERSIVE_DARK_MODE 20
+#endif
+
+#ifndef DWMWA_WINDOW_CORNER_PREFERENCE
+#define DWMWA_WINDOW_CORNER_PREFERENCE 33
+#endif
+#ifndef DWMWCP_ROUND
+#define DWMWCP_ROUND 2
 #endif
 
 constexpr const wchar_t kWindowClassName[] = L"FLUTTER_RUNNER_WIN32_WINDOW";
@@ -125,6 +133,7 @@ bool Win32Window::Create(const std::wstring& title,
                          const Size& size,
                          bool is_frameless) {
   Destroy();
+  is_frameless_ = is_frameless;
 
   const wchar_t* window_class =
       WindowClassRegistrar::GetInstance()->GetWindowClass();
@@ -135,8 +144,9 @@ bool Win32Window::Create(const std::wstring& title,
   UINT dpi = FlutterDesktopGetDpiForMonitor(monitor);
   double scale_factor = dpi / 96.0;
 
-  DWORD style = is_frameless ? (WS_POPUP | WS_THICKFRAME) : WS_OVERLAPPEDWINDOW;
-  DWORD ex_style = is_frameless ? WS_EX_APPWINDOW : 0;
+  DWORD style = is_frameless ? WS_POPUP : WS_OVERLAPPEDWINDOW;
+  // Use WS_EX_TOOLWINDOW for widget mode so it runs in background without a taskbar button
+  DWORD ex_style = is_frameless ? WS_EX_TOOLWINDOW : WS_EX_APPWINDOW;
 
   HWND window = CreateWindowEx(
       ex_style, window_class, title.c_str(), style,
@@ -150,11 +160,47 @@ bool Win32Window::Create(const std::wstring& title,
 
   UpdateTheme(window);
 
+  if (is_frameless) {
+    // 1. Set Windows 11 rounded corner preference
+    int corner_preference = DWMWCP_ROUND;
+    DwmSetWindowAttribute(window, DWMWA_WINDOW_CORNER_PREFERENCE, &corner_preference, sizeof(corner_preference));
+
+    // 2. Set rounded window region to eliminate all black background spots outside the border
+    int w = Scale(size.width, scale_factor);
+    int h = Scale(size.height, scale_factor);
+    int radius = Scale(20, scale_factor);
+    HRGN rgn = CreateRoundRectRgn(0, 0, w + 1, h + 1, radius * 2, radius * 2);
+    SetWindowRgn(window, rgn, TRUE);
+
+    // 4. Extend DWM frame to make corners transparent instead of black
+    MARGINS dwm_margins = {-1, -1, -1, -1};
+    DwmExtendFrameIntoClientArea(window, &dwm_margins);
+
+    // 3. Remove taskbar button
+    ITaskbarList* taskbar_list = nullptr;
+    if (SUCCEEDED(CoCreateInstance(CLSID_TaskbarList, nullptr, CLSCTX_INPROC_SERVER, IID_ITaskbarList, (void**)&taskbar_list))) {
+      if (SUCCEEDED(taskbar_list->HrInit())) {
+        taskbar_list->DeleteTab(window);
+      }
+      taskbar_list->Release();
+    }
+  }
+
   return OnCreate();
 }
 
 bool Win32Window::Show() {
-  return ShowWindow(window_handle_, SW_SHOWNORMAL);
+  bool result = ShowWindow(window_handle_, SW_SHOWNORMAL);
+  if (is_frameless_ && window_handle_) {
+    ITaskbarList* taskbar_list = nullptr;
+    if (SUCCEEDED(CoCreateInstance(CLSID_TaskbarList, nullptr, CLSCTX_INPROC_SERVER, IID_ITaskbarList, (void**)&taskbar_list))) {
+      if (SUCCEEDED(taskbar_list->HrInit())) {
+        taskbar_list->DeleteTab(window_handle_);
+      }
+      taskbar_list->Release();
+    }
+  }
+  return result;
 }
 
 // static
@@ -201,12 +247,46 @@ Win32Window::MessageHandler(HWND hwnd,
 
       return 0;
     }
+    case WM_ERASEBKGND:
+      if (is_frameless_) {
+        return 1; // Prevent GDI black flicker
+      }
+      break;
+
+    case WM_GETMINMAXINFO:
+      if (is_frameless_) {
+        auto info = reinterpret_cast<MINMAXINFO*>(lparam);
+        HMONITOR hMon = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
+        UINT dpi = FlutterDesktopGetDpiForMonitor(hMon);
+        double scale = (dpi > 0) ? (dpi / 96.0) : 1.0;
+        int w = static_cast<int>(400 * scale);
+        int h = static_cast<int>(200 * scale);
+        info->ptMinTrackSize.x = w;
+        info->ptMinTrackSize.y = h;
+        info->ptMaxTrackSize.x = w;
+        info->ptMaxTrackSize.y = h;
+        return 0;
+      }
+      break;
+
     case WM_SIZE: {
       RECT rect = GetClientArea();
       if (child_content_ != nullptr) {
         // Size and position the child window.
         MoveWindow(child_content_, rect.left, rect.top, rect.right - rect.left,
                    rect.bottom - rect.top, TRUE);
+      }
+      if (is_frameless_) {
+        HMONITOR hMon = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
+        UINT dpi = FlutterDesktopGetDpiForMonitor(hMon);
+        double scale = (dpi > 0) ? (dpi / 96.0) : 1.0;
+        int radius = static_cast<int>(20 * scale);
+        HRGN rgn = CreateRoundRectRgn(0, 0, rect.right - rect.left + 1, rect.bottom - rect.top + 1, radius * 2, radius * 2);
+        SetWindowRgn(hwnd, rgn, TRUE);
+        if (child_content_ != nullptr) {
+          HRGN rgnChild = CreateRoundRectRgn(0, 0, rect.right - rect.left + 1, rect.bottom - rect.top + 1, radius * 2, radius * 2);
+          SetWindowRgn(child_content_, rgnChild, TRUE);
+        }
       }
       return 0;
     }
@@ -216,6 +296,12 @@ Win32Window::MessageHandler(HWND hwnd,
         SetFocus(child_content_);
       }
       return 0;
+
+    case WM_SYSCOMMAND:
+      if (is_frameless_ && (wparam & 0xFFF0) == SC_MINIMIZE) {
+        return 0;
+      }
+      break;
 
     case WM_DWMCOLORIZATIONCOLORCHANGED:
       UpdateTheme(hwnd);
@@ -249,6 +335,17 @@ void Win32Window::SetChildContent(HWND content) {
 
   MoveWindow(content, frame.left, frame.top, frame.right - frame.left,
              frame.bottom - frame.top, true);
+
+  // Apply rounded region to child immediately to prevent black corners
+  if (is_frameless_) {
+    HMONITOR hMon = MonitorFromWindow(window_handle_, MONITOR_DEFAULTTONEAREST);
+    UINT dpi = FlutterDesktopGetDpiForMonitor(hMon);
+    double scale = (dpi > 0) ? (dpi / 96.0) : 1.0;
+    int radius = static_cast<int>(20 * scale);
+    HRGN rgn = CreateRoundRectRgn(0, 0, frame.right - frame.left + 1,
+                                   frame.bottom - frame.top + 1, radius * 2, radius * 2);
+    SetWindowRgn(content, rgn, TRUE);
+  }
 
   SetFocus(child_content_);
 }

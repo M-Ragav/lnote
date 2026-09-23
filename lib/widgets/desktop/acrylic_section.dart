@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../theme/windows_acrylic_theme.dart';
 
-/// Inner section card container for Windows 11 Light Acrylic widgets
+/// Delicate etched glass tray container for desktop widget content (matching Image 2)
 class AcrylicSection extends StatelessWidget {
   final Widget child;
   final EdgeInsetsGeometry padding;
@@ -11,7 +11,7 @@ class AcrylicSection extends StatelessWidget {
   const AcrylicSection({
     super.key,
     required this.child,
-    this.padding = const EdgeInsets.all(12),
+    this.padding = const EdgeInsets.all(10),
     this.radius = WindowsAcrylicTheme.radiusCard,
     this.backgroundColor,
   });
@@ -24,10 +24,9 @@ class AcrylicSection extends StatelessWidget {
         color: backgroundColor ?? WindowsAcrylicTheme.cardAcrylic,
         borderRadius: BorderRadius.circular(radius),
         border: Border.all(
-          color: Colors.white.withAlpha(210),
-          width: 1.0,
+          color: WindowsAcrylicTheme.cardBorder,
+          width: 0.8,
         ),
-        boxShadow: WindowsAcrylicTheme.cardShadow,
       ),
       child: child,
     );

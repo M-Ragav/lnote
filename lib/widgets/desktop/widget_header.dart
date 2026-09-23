@@ -26,7 +26,7 @@ class WidgetHeader extends StatelessWidget {
       behavior: HitTestBehavior.translucent,
       onPanStart: (_) => WindowService.startDragging(),
       child: Container(
-        padding: const EdgeInsets.fromLTRB(14, 10, 10, 8),
+        padding: const EdgeInsets.fromLTRB(12, 5, 8, 3),
         color: Colors.transparent,
         child: Row(
           children: [
@@ -35,28 +35,28 @@ class WidgetHeader extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Container(
-                  width: 18,
-                  height: 18,
+                  width: 16,
+                  height: 16,
                   decoration: BoxDecoration(
                     color: WindowsAcrylicTheme.primary,
-                    borderRadius: BorderRadius.circular(4),
+                    borderRadius: BorderRadius.circular(3.5),
                   ),
                   alignment: Alignment.center,
                   child: const Text(
                     'L',
                     style: TextStyle(
                       color: Colors.white,
-                      fontSize: 11,
+                      fontSize: 10,
                       fontWeight: FontWeight.w800,
                       height: 1.1,
                     ),
                   ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 7),
                 Text(
                   title,
                   style: WindowsAcrylicTheme.title(
-                    size: 12,
+                    size: 11.5,
                     weight: FontWeight.w600,
                     color: WindowsAcrylicTheme.textPrimary,
                   ),
@@ -66,7 +66,7 @@ class WidgetHeader extends StatelessWidget {
 
             // Draggable spacer in middle
             const Expanded(
-              child: SizedBox(height: 28),
+              child: SizedBox(height: 24),
             ),
 
             // Right: Action buttons (Sync, Refresh, Close)
@@ -76,14 +76,14 @@ class WidgetHeader extends StatelessWidget {
                 if (onSync != null)
                   isSyncing
                       ? Container(
-                          width: 28,
-                          height: 28,
+                          width: 24,
+                          height: 24,
                           alignment: Alignment.center,
                           child: const SizedBox(
-                            width: 14,
-                            height: 14,
+                            width: 12,
+                            height: 12,
                             child: CircularProgressIndicator(
-                              strokeWidth: 1.8,
+                              strokeWidth: 1.6,
                               valueColor: AlwaysStoppedAnimation<Color>(
                                 WindowsAcrylicTheme.primary,
                               ),
@@ -93,6 +93,8 @@ class WidgetHeader extends StatelessWidget {
                       : GlassIconButton(
                           icon: Icons.cloud_sync_outlined,
                           tooltip: 'Sync with backend',
+                          size: 24,
+                          iconSize: 14,
                           onTap: onSync,
                         ),
                 if (onRefresh != null) ...[
@@ -100,6 +102,8 @@ class WidgetHeader extends StatelessWidget {
                   GlassIconButton(
                     icon: Icons.refresh_rounded,
                     tooltip: 'Refresh attendance',
+                    size: 24,
+                    iconSize: 14,
                     onTap: onRefresh,
                   ),
                 ],
@@ -108,6 +112,8 @@ class WidgetHeader extends StatelessWidget {
                   icon: Icons.close_rounded,
                   tooltip: 'Close',
                   isClose: true,
+                  size: 24,
+                  iconSize: 14,
                   onTap: onClose ?? () => WindowService.closeWindow(),
                 ),
               ],

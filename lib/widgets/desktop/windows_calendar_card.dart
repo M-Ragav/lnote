@@ -3,10 +3,9 @@ import 'package:intl/intl.dart';
 import '../../models/attendance_day.dart';
 import '../../services/storage_service.dart';
 import '../../theme/windows_acrylic_theme.dart';
-import 'acrylic_section.dart';
 import 'glass_icon_button.dart';
 
-/// Clean Windows 11 Light Acrylic Monthly Calendar widget
+/// Clean Windows 11 Light Acrylic Monthly Calendar widget (400x200 px optimized)
 class WindowsCalendarCard extends StatefulWidget {
   final StorageService storage;
   final bool compact;
@@ -14,7 +13,7 @@ class WindowsCalendarCard extends StatefulWidget {
   const WindowsCalendarCard({
     super.key,
     required this.storage,
-    this.compact = false,
+    this.compact = true,
   });
 
   @override
@@ -76,7 +75,7 @@ class _WindowsCalendarCardState extends State<WindowsCalendarCard> {
   Widget build(BuildContext context) {
     final now = DateTime.now();
     final today = DateUtils.dateOnly(now);
-    final monthYearStr = DateFormat('MMMM yyyy').format(_displayedMonth);
+    final monthYearStr = DateFormat('MMM yyyy').format(_displayedMonth);
 
     // Map existing days by date string "yyyy-MM-dd"
     final Map<String, AttendanceDay> dayMap = {};
@@ -96,7 +95,6 @@ class _WindowsCalendarCardState extends State<WindowsCalendarCard> {
     }
 
     // Month Grid Calculation: Monday to Sunday
-    // firstWeekday: 1 (Mon) to 7 (Sun)
     final firstWeekday = _displayedMonth.weekday;
     final daysBefore = firstWeekday - 1;
     final startDate = _displayedMonth.subtract(Duration(days: daysBefore));
@@ -105,172 +103,194 @@ class _WindowsCalendarCardState extends State<WindowsCalendarCard> {
     final totalDays = daysBefore + daysInMonth;
     final rows = (totalDays / 7).ceil();
 
-    return AcrylicSection(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Header: Month & Year + Navigation Arrows
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              GestureDetector(
-                onTap: _goToToday,
-                child: MouseRegion(
-                  cursor: SystemMouseCursors.click,
-                  child: Text(
-                    monthYearStr,
-                    style: WindowsAcrylicTheme.title(
-                      size: 13,
-                      weight: FontWeight.w600,
-                      color: WindowsAcrylicTheme.textPrimary,
-                    ),
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+          // ─── Left Column: Calendar Grid ──────────────────────────
+          Expanded(
+            flex: 13,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Day of week labels: M T W T F S S
+                Row(
+                  children: const [
+                    _DayHeaderLabel('M'),
+                    _DayHeaderLabel('T'),
+                    _DayHeaderLabel('W'),
+                    _DayHeaderLabel('T'),
+                    _DayHeaderLabel('F'),
+                    _DayHeaderLabel('S'),
+                    _DayHeaderLabel('S'),
+                  ],
+                ),
+                const SizedBox(height: 3),
+
+                // Monthly Calendar Grid
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      for (int r = 0; r < rows; r++)
+                        Row(
+                          children: [
+                            for (int c = 0; c < 7; c++)
+                              Expanded(
+                                child: _buildDayCell(
+                                  date: startDate.add(Duration(days: r * 7 + c)),
+                                  today: today,
+                                  dayMap: dayMap,
+                                ),
+                              ),
+                          ],
+                        ),
+                    ],
                   ),
                 ),
-              ),
-
-              // Navigation controls (< >)
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  GlassIconButton(
-                    icon: Icons.chevron_left_rounded,
-                    tooltip: 'Previous month',
-                    size: 24,
-                    iconSize: 17,
-                    onTap: _prevMonth,
-                  ),
-                  const SizedBox(width: 4),
-                  GlassIconButton(
-                    icon: Icons.chevron_right_rounded,
-                    tooltip: 'Next month',
-                    size: 24,
-                    iconSize: 17,
-                    onTap: _nextMonth,
-                  ),
-                ],
-              ),
-            ],
+              ],
+            ),
           ),
-          const SizedBox(height: 10),
 
-          // Day of week labels: M T W T F S S
-          Row(
-            children: const [
-              _DayHeaderLabel('M'),
-              _DayHeaderLabel('T'),
-              _DayHeaderLabel('W'),
-              _DayHeaderLabel('T'),
-              _DayHeaderLabel('F'),
-              _DayHeaderLabel('S'),
-              _DayHeaderLabel('S'),
-            ],
+          // ─── Vertical Divider ───────────────────────────────────
+          Container(
+            width: 1,
+            color: WindowsAcrylicTheme.divider,
+            margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
           ),
-          const SizedBox(height: 6),
 
-          // Monthly Calendar Grid
-          for (int r = 0; r < rows; r++)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 2),
-              child: Row(
-                children: [
-                  for (int c = 0; c < 7; c++) ...[
+          // ─── Right Column: Month Navigation, Total, & Legend ────
+          Expanded(
+            flex: 8,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Month & Year + Prev/Next Controls
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
                     Expanded(
-                      child: _buildDayCell(
-                        date: startDate.add(Duration(days: r * 7 + c)),
-                        today: today,
-                        dayMap: dayMap,
+                      child: GestureDetector(
+                        onTap: _goToToday,
+                        child: MouseRegion(
+                          cursor: SystemMouseCursors.click,
+                          child: Text(
+                            monthYearStr,
+                            style: WindowsAcrylicTheme.title(
+                              size: 11.5,
+                              weight: FontWeight.w700,
+                              color: WindowsAcrylicTheme.textPrimary,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ),
+                    ),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        GlassIconButton(
+                          icon: Icons.chevron_left_rounded,
+                          tooltip: 'Previous month',
+                          size: 20,
+                          iconSize: 14,
+                          onTap: _prevMonth,
+                        ),
+                        const SizedBox(width: 2),
+                        GlassIconButton(
+                          icon: Icons.chevron_right_rounded,
+                          tooltip: 'Next month',
+                          size: 20,
+                          iconSize: 14,
+                          onTap: _nextMonth,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 5),
+
+                // Divider
+                Container(
+                  height: 1,
+                  color: WindowsAcrylicTheme.divider,
+                ),
+                const SizedBox(height: 6),
+
+                // Month Total Logged
+                Text(
+                  'Month total',
+                  style: WindowsAcrylicTheme.caption(
+                    size: 9.5,
+                    color: WindowsAcrylicTheme.textMuted,
+                  ),
+                ),
+                const SizedBox(height: 1),
+                Text(
+                  _formatDuration(monthTotalDuration),
+                  style: WindowsAcrylicTheme.title(
+                    size: 13,
+                    weight: FontWeight.w600,
+                    color: WindowsAcrylicTheme.primary,
+                  ),
+                ),
+
+                const Spacer(),
+
+                // Divider
+                Container(
+                  height: 1,
+                  color: WindowsAcrylicTheme.divider,
+                ),
+                const SizedBox(height: 5),
+
+                // Legend (● Active, ○ Empty)
+                Row(
+                  children: [
+                    Container(
+                      width: 4,
+                      height: 4,
+                      decoration: const BoxDecoration(
+                        color: WindowsAcrylicTheme.statusActive,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 3),
+                    Text(
+                      'Active',
+                      style: WindowsAcrylicTheme.caption(
+                        size: 9,
+                        color: WindowsAcrylicTheme.textSecondary,
+                      ),
+                    ),
+                    const SizedBox(width: 7),
+                    Container(
+                      width: 4,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.transparent,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: WindowsAcrylicTheme.textMuted,
+                          width: 0.8,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 3),
+                    Text(
+                      'Empty',
+                      style: WindowsAcrylicTheme.caption(
+                        size: 9,
+                        color: WindowsAcrylicTheme.textMuted,
                       ),
                     ),
                   ],
-                ],
-              ),
+                ),
+              ],
             ),
-
-          const SizedBox(height: 10),
-
-          // Divider
-          Container(
-            height: 1,
-            color: WindowsAcrylicTheme.divider,
-          ),
-          const SizedBox(height: 8),
-
-          // Bottom Bar: Legend and Total Logged
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              // Legend (● Active, ○ No session)
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 5,
-                    height: 5,
-                    decoration: const BoxDecoration(
-                      color: WindowsAcrylicTheme.primary,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    'Active',
-                    style: WindowsAcrylicTheme.caption(
-                      size: 9.5,
-                      color: WindowsAcrylicTheme.textSecondary,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Container(
-                    width: 5,
-                    height: 5,
-                    decoration: BoxDecoration(
-                      color: Colors.transparent,
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: WindowsAcrylicTheme.textMuted,
-                        width: 1,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    'No session',
-                    style: WindowsAcrylicTheme.caption(
-                      size: 9.5,
-                      color: WindowsAcrylicTheme.textMuted,
-                    ),
-                  ),
-                ],
-              ),
-
-              // Total logged summary
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    'Total logged  ',
-                    style: WindowsAcrylicTheme.caption(
-                      size: 10,
-                      color: WindowsAcrylicTheme.textSecondary,
-                    ),
-                  ),
-                  Text(
-                    _formatDuration(monthTotalDuration),
-                    style: WindowsAcrylicTheme.title(
-                      size: 11,
-                      weight: FontWeight.w600,
-                      color: WindowsAcrylicTheme.primary,
-                    ),
-                  ),
-                ],
-              ),
-            ],
           ),
         ],
-      ),
-    );
+      );
   }
 
   Widget _buildDayCell({
@@ -312,7 +332,7 @@ class _DayHeaderLabel extends StatelessWidget {
           text,
           style: TextStyle(
             fontFamilyFallback: WindowsAcrylicTheme.fontFallbacks,
-            fontSize: 10,
+            fontSize: 9.5,
             fontWeight: FontWeight.w600,
             color: WindowsAcrylicTheme.textMuted,
           ),
@@ -322,7 +342,7 @@ class _DayHeaderLabel extends StatelessWidget {
   }
 }
 
-/// Individual Day Cell in Windows 11 Acrylic Calendar
+/// Individual Day Cell in Windows 11 Acrylic Calendar (400x200 px optimized)
 class _CalendarDayCell extends StatefulWidget {
   final int dayNumber;
   final bool isCurrentMonth;
@@ -350,7 +370,7 @@ class _CalendarDayCellState extends State<_CalendarDayCell> {
   void _showDetails(BuildContext context) {
     if (widget.attendance == null || widget.attendance!.sessions.isEmpty) return;
 
-    final dateTitle = DateFormat('EEEE, MMM d, yyyy').format(widget.date);
+    final dateTitle = DateFormat('EEE, MMM d').format(widget.date);
     final duration = widget.attendance!.formattedTotalDuration;
     final count = widget.attendance!.sessions.length;
 
@@ -361,13 +381,19 @@ class _CalendarDayCellState extends State<_CalendarDayCell> {
           child: Material(
             color: Colors.transparent,
             child: Container(
-              width: 280,
-              padding: const EdgeInsets.all(16),
+              width: 320,
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
               decoration: BoxDecoration(
                 color: Colors.white.withAlpha(245),
-                borderRadius: BorderRadius.circular(WindowsAcrylicTheme.radiusCard),
-                border: Border.all(color: Colors.white, width: 1.5),
-                boxShadow: WindowsAcrylicTheme.ambientShadow,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.white.withAlpha(200), width: 1.2),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x28000000),
+                    blurRadius: 24,
+                    offset: Offset(0, 8),
+                  ),
+                ],
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -378,43 +404,86 @@ class _CalendarDayCellState extends State<_CalendarDayCell> {
                     children: [
                       Text(
                         dateTitle,
-                        style: WindowsAcrylicTheme.title(size: 12),
+                        style: WindowsAcrylicTheme.title(size: 12.5, weight: FontWeight.w700),
                       ),
                       GlassIconButton(
                         icon: Icons.close_rounded,
-                        size: 20,
+                        size: 22,
                         iconSize: 14,
                         onTap: () => Navigator.of(ctx).pop(),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Logged: $duration across $count session${count == 1 ? '' : 's'}',
-                    style: WindowsAcrylicTheme.subtitle(
-                      size: 11,
-                      color: WindowsAcrylicTheme.primary,
-                      weight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  ...widget.attendance!.sessions.map((s) {
-                    final inStr = DateFormat('h:mm a').format(s.inTime);
-                    final outStr = s.outTime != null
-                        ? DateFormat('h:mm a').format(s.outTime!)
-                        : 'Active';
-                    final tagStr = s.tag != null ? ' • ${s.tag}' : '';
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 2),
-                      child: Text(
-                        '• $inStr – $outStr ($tagStr)',
-                        style: WindowsAcrylicTheme.caption(
-                          size: 10.5,
-                          color: WindowsAcrylicTheme.textSecondary,
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      Container(
+                        width: 6,
+                        height: 6,
+                        decoration: const BoxDecoration(
+                          color: WindowsAcrylicTheme.statusActive,
+                          shape: BoxShape.circle,
                         ),
                       ),
-                    );
-                  }),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Logged: $duration  •  $count session${count == 1 ? '' : 's'}',
+                        style: WindowsAcrylicTheme.subtitle(
+                          size: 11,
+                          color: WindowsAcrylicTheme.statusActive,
+                          weight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Container(height: 1, color: WindowsAcrylicTheme.divider),
+                  const SizedBox(height: 8),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxHeight: 120),
+                    child: SingleChildScrollView(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: widget.attendance!.sessions.asMap().entries.map((entry) {
+                          final idx = entry.key + 1;
+                          final s = entry.value;
+                          final inStr = DateFormat('h:mm a').format(s.inTime);
+                          final outStr = s.outTime != null
+                              ? DateFormat('h:mm a').format(s.outTime!)
+                              : 'Active';
+                          final tagStr = s.tag != null ? '  •  ${s.tag}' : '';
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 3),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                SizedBox(
+                                  width: 16,
+                                  child: Text(
+                                    '$idx.',
+                                    style: WindowsAcrylicTheme.caption(
+                                      size: 10.5,
+                                      weight: FontWeight.w600,
+                                      color: WindowsAcrylicTheme.textMuted,
+                                    ),
+                                  ),
+                                ),
+                                Expanded(
+                                  child: Text(
+                                    '$inStr – $outStr$tagStr',
+                                    style: WindowsAcrylicTheme.caption(
+                                      size: 10.5,
+                                      color: WindowsAcrylicTheme.textSecondary,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -426,10 +495,9 @@ class _CalendarDayCellState extends State<_CalendarDayCell> {
 
   @override
   Widget build(BuildContext context) {
-    // Determine cell colors
     Color textColor;
     if (!widget.isCurrentMonth) {
-      textColor = const Color(0xFFBDC1C6); // Very subtle inactive date
+      textColor = const Color(0xFF94A3B8);
     } else if (widget.isToday) {
       textColor = WindowsAcrylicTheme.primary;
     } else {
@@ -438,11 +506,11 @@ class _CalendarDayCellState extends State<_CalendarDayCell> {
 
     final cellBg = widget.isToday
         ? WindowsAcrylicTheme.lightAccent
-        : (_isHovered ? const Color(0x0E0067C0) : Colors.transparent);
+        : (_isHovered ? const Color(0x200067C0) : Colors.transparent);
 
     final border = widget.isToday
         ? Border.all(
-            color: WindowsAcrylicTheme.primary.withAlpha(70),
+            color: WindowsAcrylicTheme.primary.withAlpha(90),
             width: 0.8,
           )
         : null;
@@ -455,21 +523,23 @@ class _CalendarDayCellState extends State<_CalendarDayCell> {
         onTap: widget.hasSession ? () => _showDetails(context) : null,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 100),
-          height: 28,
-          margin: const EdgeInsets.symmetric(horizontal: 1.5, vertical: 1),
+          height: 18,
+          margin: const EdgeInsets.symmetric(horizontal: 1, vertical: 0.5),
           decoration: BoxDecoration(
             color: cellBg,
-            borderRadius: BorderRadius.circular(6),
+            borderRadius: BorderRadius.circular(4),
             border: border,
           ),
-          child: Column(
+          alignment: Alignment.center,
+          child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
             children: [
               Text(
                 '${widget.dayNumber}',
                 style: TextStyle(
                   fontFamilyFallback: WindowsAcrylicTheme.fontFallbacks,
-                  fontSize: 11,
+                  fontSize: 9.5,
                   fontWeight: widget.isToday
                       ? FontWeight.w700
                       : (widget.isCurrentMonth ? FontWeight.w500 : FontWeight.w400),
@@ -477,17 +547,15 @@ class _CalendarDayCellState extends State<_CalendarDayCell> {
                 ),
               ),
               if (widget.isCurrentMonth && widget.hasSession) ...[
-                const SizedBox(height: 1.5),
+                const SizedBox(width: 2),
                 Container(
                   width: 3.5,
                   height: 3.5,
                   decoration: const BoxDecoration(
-                    color: WindowsAcrylicTheme.primary,
+                    color: WindowsAcrylicTheme.statusActive,
                     shape: BoxShape.circle,
                   ),
                 ),
-              ] else ...[
-                const SizedBox(height: 5),
               ],
             ],
           ),
