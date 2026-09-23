@@ -5,12 +5,11 @@ import '../widgets/desktop/acrylic_surface.dart';
 import '../widgets/desktop/widget_header.dart';
 import '../widgets/desktop/desktop_dashboard_card.dart';
 import '../widgets/desktop/windows_calendar_card.dart';
-import '../widgets/desktop/empty_glassy_card.dart';
 
 /// Windows 11 Translucent Glass Desktop Widget View (400x200 px)
 class DesktopWidgetView extends StatefulWidget {
   final StorageService storage;
-  final String initialMode; // 'dashboard', 'calendar', or 'empty'
+  final String initialMode; // 'dashboard', 'calendar'
 
   const DesktopWidgetView({
     super.key,
@@ -73,17 +72,9 @@ class _DesktopWidgetViewState extends State<DesktopWidgetView> {
 
     Widget content;
     if (_mode == 'calendar') {
-      content = WindowsCalendarCard(
-        storage: widget.storage,
-        compact: true,
-      );
-    } else if (_mode == 'empty' || _mode == 'glassy') {
-      content = const EmptyGlassyCard();
+      content = WindowsCalendarCard(storage: widget.storage, compact: true);
     } else {
-      content = DesktopDashboardCard(
-        storage: widget.storage,
-        compact: true,
-      );
+      content = DesktopDashboardCard(storage: widget.storage, compact: true);
     }
 
     return Scaffold(
