@@ -9,6 +9,8 @@ import '../models/user_profile.dart';
 import '../services/notification_service.dart';
 import '../widgets/backend_config_sheet.dart';
 import '../widgets/app_lock_modal.dart';
+import '../widgets/food_prep_dialog.dart';
+import '../services/food_prep_service.dart';
 import 'desktop_widget_view.dart';
 
 class ProfilePage extends StatefulWidget {
@@ -131,6 +133,85 @@ class _ProfilePageState extends State<ProfilePage> {
           // Daily target
           _buildTargetTile(theme),
           const SizedBox(height: 20),
+
+          // ─── Food Preparation ─────────────────────────
+          _sectionLabel(theme, 'FOOD PREPARATION'),
+          const SizedBox(height: 8),
+
+          // Food Preparation Reminder Switch
+          _buildSwitchTile(
+            theme,
+            icon: Icons.checklist_rtl_rounded,
+            title: 'Daily Food Preparation',
+            subtitle: 'Popup checklist floating window for next day\'s food',
+            value: widget.storage.foodPrepEnabled,
+            onChanged: (val) => widget.storage.setFoodPrepEnabled(val),
+          ),
+          const SizedBox(height: 8),
+
+          // Preparation Time
+          _buildTapTile(
+            theme,
+            icon: Icons.access_time_rounded,
+            title: 'Preparation Reminder Time',
+            subtitle: 'Daily at ${widget.storage.foodPrepTime.format(context)}',
+            iconColor: const Color(0xFF10B981),
+            trailing: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: const Color(0xFF10B981).withAlpha(25),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: const Color(0xFF10B981).withAlpha(60),
+                  width: 0.5,
+                ),
+              ),
+              child: Text(
+                widget.storage.foodPrepTime.format(context),
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF10B981),
+                ),
+              ),
+            ),
+            onTap: () => _pickFoodPrepTime(context),
+          ),
+          const SizedBox(height: 8),
+
+          // Test Window Popup Button
+          _buildTapTile(
+            theme,
+            icon: Icons.picture_in_picture_alt_rounded,
+            title: 'Test Window Popup',
+            subtitle: 'Open floating checklist window now',
+            iconColor: AppTheme.accentTeal,
+            trailing: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                gradient: AppTheme.accentGradient,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Text(
+                'TEST POPUP',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ),
+            onTap: () => _handleTestFoodPrepPopup(context),
+          ),
+          const SizedBox(height: 8),
+
+          // Android Display Over Other Apps Permission Tile
+          if (Platform.isAndroid) ...[
+            _buildOverlayPermissionTile(theme),
+            const SizedBox(height: 8),
+          ],
+          const SizedBox(height: 12),
 
           // ─── Cloud Sync ──────────────────────────────
           _sectionLabel(theme, 'CLOUD SYNC'),
@@ -762,6 +843,80 @@ class _ProfilePageState extends State<ProfilePage> {
         duration: const Duration(seconds: 4),
         behavior: SnackBarBehavior.floating,
       ),
+    );
+  }
+
+  Future<void> _pickFoodPrepTime(BuildContext context) async {
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: widget.storage.foodPrepTime,
+    );
+    if (picked != null) {
+      await widget.storage.setFoodPrepTime(picked);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Food preparation reminder set to ${picked.format(context)} daily',
+            ),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _handleTestFoodPrepPopup(BuildContext context) async {
+    // Show the modern checklist window that fits the app theme (single popup)
+    if (context.mounted) {
+      FoodPrepDialog.show(context, widget.storage);
+    }
+  }
+
+  Widget _buildOverlayPermissionTile(ThemeData theme) {
+    return FutureBuilder<bool>(
+      future: FoodPrepService.hasOverlayPermission(),
+      builder: (context, snapshot) {
+        final hasPermission = snapshot.data ?? false;
+        return _buildTapTile(
+          theme,
+          icon: Icons.layers_outlined,
+          title: 'Display Over Other Apps',
+          subtitle: hasPermission
+              ? 'Permission granted for floating overlay window'
+              : 'Tap to grant permission so window can float over other apps',
+          iconColor: hasPermission ? AppTheme.accentTeal : AppTheme.warningAmber,
+          trailing: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: hasPermission
+                  ? AppTheme.accentTeal.withAlpha(25)
+                  : AppTheme.warningAmber.withAlpha(25),
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(
+                color: hasPermission
+                    ? AppTheme.accentTeal.withAlpha(60)
+                    : AppTheme.warningAmber.withAlpha(60),
+                width: 0.8,
+              ),
+            ),
+            child: Text(
+              hasPermission ? 'GRANTED ✓' : 'ENABLE',
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+                color: hasPermission ? AppTheme.accentTeal : AppTheme.warningAmber,
+              ),
+            ),
+          ),
+          onTap: () async {
+            if (!hasPermission) {
+              await FoodPrepService.requestOverlayPermission();
+              setState(() {});
+            }
+          },
+        );
+      },
     );
   }
 

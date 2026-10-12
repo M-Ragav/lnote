@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../services/storage_service.dart';
 import 'home_page.dart';
 import 'calendar_page.dart';
-import 'control_page.dart';
+import 'food_page.dart';
 import 'profile_page.dart';
 
 class MainShell extends StatefulWidget {
@@ -26,7 +26,7 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
     _pages = [
       HomePage(storage: widget.storage),
       CalendarPage(storage: widget.storage),
-      SkillsPage(storage: widget.storage),
+      FoodPage(storage: widget.storage),
       ProfilePage(storage: widget.storage),
     ];
   }
@@ -77,9 +77,9 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
               label: 'Calendar',
             ),
             NavigationDestination(
-              icon: Icon(Icons.auto_awesome_outlined),
-              selectedIcon: Icon(Icons.auto_awesome_rounded),
-              label: 'Skills',
+              icon: Icon(Icons.restaurant_outlined),
+              selectedIcon: Icon(Icons.restaurant_rounded),
+              label: 'Food',
             ),
             NavigationDestination(
               icon: Icon(Icons.person_outline_rounded),

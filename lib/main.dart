@@ -1,7 +1,12 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'services/storage_service.dart';
+import 'services/food_prep_service.dart';
+import 'services/app_usage_service.dart';
+import 'models/app_restriction.dart';
+import 'widgets/food_prep_dialog.dart';
 import 'theme/app_theme.dart';
 import 'pages/profile_setup_page.dart';
 import 'pages/main_shell.dart';
@@ -20,6 +25,32 @@ void main(List<String> args) async {
   // Initialize storage
   final storage = StorageService();
   await storage.init();
+
+  if (Platform.isAndroid && storage.appRestrictions.isNotEmpty) {
+    try {
+      final controlled = storage.appRestrictions
+          .where((r) => r.enabled)
+          .map((r) => r.packageId)
+          .toList();
+      final strict = storage.appRestrictions
+          .where((r) => r.enabled && r.mode == UsageMode.strict)
+          .map((r) => r.packageId)
+          .toList();
+      final limits = <String, int>{};
+      for (final r in storage.appRestrictions) {
+        if (r.enabled) {
+          limits[r.packageId] = r.dailyLimitMinutes;
+        }
+      }
+      AppUsageService.syncRestrictions(
+        controlledPackages: controlled,
+        strictPackages: strict,
+      );
+      AppUsageService.updateDailyLimits(limits);
+    } catch (e) {
+      debugPrint('Startup syncRestrictions error: $e');
+    }
+  }
 
   String? widgetMode;
   for (final arg in args) {
@@ -56,8 +87,10 @@ class LNoteApp extends StatefulWidget {
 }
 
 class _LNoteAppState extends State<LNoteApp> with WidgetsBindingObserver {
+  final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
   Timer? _periodicSyncTimer;
   bool _isUnlocked = false;
+  bool _isFoodPrepDialogOpen = false;
 
   @override
   void initState() {
@@ -67,11 +100,16 @@ class _LNoteAppState extends State<LNoteApp> with WidgetsBindingObserver {
 
     _isUnlocked = !widget.storage.isAppLockEnabled;
 
-    // Periodic sync every 30 seconds while app is running
+    // Periodic sync & food prep check every 30 seconds while app is running
     _periodicSyncTimer = Timer.periodic(const Duration(seconds: 30), (_) {
       if (widget.storage.isBackendConfigured && widget.storage.autoSyncEnabled) {
         widget.storage.triggerSync();
       }
+      _checkFoodPrepTrigger();
+    });
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkFoodPrepTrigger();
     });
   }
 
@@ -83,6 +121,23 @@ class _LNoteAppState extends State<LNoteApp> with WidgetsBindingObserver {
     super.dispose();
   }
 
+  void _checkFoodPrepTrigger() {
+    if (widget.widgetMode != null) return;
+    if (_isFoodPrepDialogOpen) return;
+    if (widget.storage.shouldTriggerFoodPrepNow()) {
+      final context = _navigatorKey.currentContext;
+      if (context != null) {
+        _isFoodPrepDialogOpen = true;
+        FoodPrepDialog.show(context, widget.storage).then((_) {
+          _isFoodPrepDialogOpen = false;
+        });
+      }
+      if (Platform.isAndroid) {
+        FoodPrepService.showNativeFloatingWindow(widget.storage.getTomorrowFoods());
+      }
+    }
+  }
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.paused || state == AppLifecycleState.hidden) {
@@ -90,10 +145,11 @@ class _LNoteAppState extends State<LNoteApp> with WidgetsBindingObserver {
         setState(() => _isUnlocked = false);
       }
     } else if (state == AppLifecycleState.resumed) {
-      // Reopened or brought to foreground: immediately sync latest updates
+      // Reopened or brought to foreground: immediately sync latest updates & check food prep
       if (widget.storage.isBackendConfigured && widget.storage.autoSyncEnabled) {
         widget.storage.triggerSync();
       }
+      _checkFoodPrepTrigger();
     }
   }
 
@@ -109,6 +165,7 @@ class _LNoteAppState extends State<LNoteApp> with WidgetsBindingObserver {
         : 'LNote Dashboard Widget';
 
     return MaterialApp(
+      navigatorKey: _navigatorKey,
       title: isWidget ? widgetTitle : 'LNote',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme(),

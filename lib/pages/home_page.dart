@@ -3,6 +3,9 @@ import 'package:intl/intl.dart';
 import '../services/storage_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/session_button.dart';
+import '../widgets/food_prep_dialog.dart';
+import 'control_page.dart';
+import 'usage/app_usage_dashboard_page.dart';
 
 class HomePage extends StatefulWidget {
   final StorageService storage;
@@ -66,16 +69,35 @@ class _HomePageState extends State<HomePage> {
     final daysLived = _daysLived();
 
     return Scaffold(
+      drawer: _buildDrawer(context, theme),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(20, 20, 20, 100),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Greeting with Logo
+              // Greeting with Drawer Trigger and Logo
               Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
+                  Builder(
+                    builder: (scaffoldContext) => InkWell(
+                      onTap: () => Scaffold.of(scaffoldContext).openDrawer(),
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        padding: const EdgeInsets.all(8),
+                        margin: const EdgeInsets.only(right: 12),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.surfaceContainerHighest.withAlpha(50),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: theme.colorScheme.outline.withAlpha(35),
+                          ),
+                        ),
+                        child: const Icon(Icons.menu_rounded, size: 24),
+                      ),
+                    ),
+                  ),
                   Expanded(
                     child: Text(
                       '${_greeting()}, ${profile?.name ?? ''} 👋',
@@ -449,6 +471,256 @@ class _HomePageState extends State<HomePage> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildDrawer(BuildContext context, ThemeData theme) {
+    final profile = widget.storage.profile;
+    final skillsCount = widget.storage.skills.length;
+
+    return Drawer(
+      backgroundColor: theme.colorScheme.surface,
+      child: SafeArea(
+        child: Column(
+          children: [
+            // Drawer Header
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    AppTheme.accentTeal.withAlpha(30),
+                    AppTheme.accentCyan.withAlpha(15),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                border: Border(
+                  bottom: BorderSide(
+                    color: theme.colorScheme.outline.withAlpha(35),
+                  ),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 52,
+                    height: 52,
+                    decoration: BoxDecoration(
+                      gradient: AppTheme.accentGradient,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppTheme.accentTeal.withAlpha(80),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      profile?.name.isNotEmpty == true
+                          ? profile!.name[0].toUpperCase()
+                          : 'L',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Text(
+                    profile?.name ?? 'User',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'LNote Personal Workspace',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurface.withAlpha(140),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Navigation Items
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                children: [
+                  // Skills Option (moved from bottom nav)
+                  Container(
+                    decoration: BoxDecoration(
+                      color: AppTheme.accentTeal.withAlpha(15),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: AppTheme.accentTeal.withAlpha(40),
+                      ),
+                    ),
+                    child: ListTile(
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                      leading: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          gradient: AppTheme.accentGradient,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(
+                          Icons.auto_awesome_rounded,
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                      ),
+                      title: const Text(
+                        'Skills',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      subtitle: Text(
+                        'Mastery hours & learning tags',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: theme.colorScheme.onSurface.withAlpha(150),
+                        ),
+                      ),
+                      trailing: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: AppTheme.accentTeal.withAlpha(35),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          '$skillsCount',
+                          style: const TextStyle(
+                            color: AppTheme.accentTeal,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      onTap: () {
+                        Navigator.of(context).pop(); // close drawer
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => SkillsPage(storage: widget.storage),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+
+                  // Food Preparation Checklist shortcut
+                  ListTile(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+                    leading: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF10B981).withAlpha(25),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(
+                        Icons.checklist_rtl_rounded,
+                        color: Color(0xFF10B981),
+                        size: 20,
+                      ),
+                    ),
+                    title: const Text('Food Preparation'),
+                    subtitle: Text(
+                      'Tomorrow\'s food checklist',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: theme.colorScheme.onSurface.withAlpha(140),
+                      ),
+                    ),
+                    onTap: () {
+                      Navigator.of(context).pop();
+                      FoodPrepDialog.show(context, widget.storage);
+                    },
+                  ),
+                  const SizedBox(height: 10),
+
+                  // App Usage Control (Conscious usage & app limits)
+                  Container(
+                    decoration: BoxDecoration(
+                      color: AppTheme.accentCyan.withAlpha(15),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: AppTheme.accentCyan.withAlpha(40),
+                      ),
+                    ),
+                    child: ListTile(
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                      leading: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: AppTheme.accentCyan.withAlpha(30),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(
+                          Icons.screen_lock_portrait_rounded,
+                          color: AppTheme.accentCyan,
+                          size: 20,
+                        ),
+                      ),
+                      title: const Text(
+                        'App Usage Control',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      subtitle: Text(
+                        'Conscious app usage & limits',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: theme.colorScheme.onSurface.withAlpha(150),
+                        ),
+                      ),
+                      trailing: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: AppTheme.accentCyan.withAlpha(35),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          '${widget.storage.appRestrictions.where((r) => r.enabled).length}',
+                          style: const TextStyle(
+                            color: AppTheme.accentCyan,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      onTap: () {
+                        Navigator.of(context).pop();
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => AppUsageDashboardPage(storage: widget.storage),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Footer
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              child: Text(
+                'LNote v1.0.1 • Focus & Health',
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: theme.colorScheme.onSurface.withAlpha(100),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

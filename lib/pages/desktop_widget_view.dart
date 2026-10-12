@@ -102,5 +102,5 @@ class _DesktopWidgetViewState extends State<DesktopWidgetView> {
         ),
       ),
     );
-  }
+  } 
 }
